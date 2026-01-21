@@ -1,0 +1,51 @@
+name: Sync Docker Images to Aliyun ACR
+
+on:
+  workflow_dispatch: # 此配置允许手动触发
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to Aliyun Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.ALIYUN_REGISTRY }}
+          username: ${{ secrets.ALIYUN_USERNAME }}
+          password: ${{ secrets.ALIYUN_PASSWORD }}
+
+      - name: Sync and Push Images
+        run: |
+          # 定义需要同步的镜像列表
+          IMAGES="
+          elasticsearch:8.11.1
+          milvusdb/milvus:v2.3.3
+          mongo:6.0
+          redis:7-alpine
+          quay.io/coreos/etcd:v3.5.9
+          minio/minio:RELEASE.2023-03-20T20-16-18Z
+          apache/pulsar:3.1.1
+          "
+
+          # 循环拉取、重打标签、推送
+          for SOURCE_IMAGE in $IMAGES; do
+            echo "正在处理: $SOURCE_IMAGE"
+            
+            # 生成目标标签：将源镜像名中的'/'替换为'-'，避免路径问题
+            TARGET_TAG=$(echo $SOURCE_IMAGE | sed 's|/|-|g' | sed 's|:|:|')
+            
+            # 拉取镜像
+            docker pull $SOURCE_IMAGE
+            
+            # 打上阿里云仓库的标签
+            docker tag $SOURCE_IMAGE ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/offline-images:$TARGET_TAG
+            
+            # 推送至您的阿里云仓库
+            docker push ${{ secrets.ALIYUN_REGISTRY }}/${{ secrets.ALIYUN_NAMESPACE }}/offline-images:$TARGET_TAG
+            
+            echo "成功推送: $SOURCE_IMAGE -> $TARGET_TAG"
+            echo "---"
+          done
