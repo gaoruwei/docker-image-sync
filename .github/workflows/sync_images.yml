@@ -35,7 +35,7 @@ jobs:
             echo "正在处理: $SOURCE_IMAGE"
             
             # 生成目标标签：将源镜像名中的'/'替换为'-'，避免路径问题
-            TARGET_TAG=$(echo $SOURCE_IMAGE | sed 's|/|-|g' | sed 's|:|:|')
+            TARGET_TAG=$(echo $SOURCE_IMAGE | sed 's|[/:]|-|g')
             
             # 拉取镜像
             docker pull $SOURCE_IMAGE
